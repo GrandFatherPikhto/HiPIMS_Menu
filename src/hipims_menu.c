@@ -269,23 +269,42 @@ static void menu_draw(void)
     lcd1602_print(row1);
 }
 
-void menu_init(void)
+/* The FPGA has no non-volatile memory of its own for regs — a standalone
+ * FPGA reconfigure (reflash via Programmer, power-cycle of just the FPGA
+ * board) silently zeroes all 36 registers without the STM32 knowing, since
+ * it only sees this at its own boot. Looks like "SPI is fine (ACK), but no
+ * generation" and is nasty to debug blind. Safe to resend on a timer:
+ * REG_ENABLE only clears the fault latch on a 0->1 *edge*, not a level, so
+ * resending the same 1 repeatedly does not re-trigger it; every other
+ * register is a plain level with no side effect from being rewritten. */
+static void menu_resend_all_regs(void)
 {
-    storage_init();
-
-    /* The FPGA has no memory of its own across a power cycle, so re-apply
-     * everything that survived in STM32 flash. */
     for (uint8_t addr = 0; addr < HIPIMS_NUM_REGS; addr++)
     {
         hipims_spi_write_reg(addr, storage_get(addr));
     }
+}
 
+void menu_init(void)
+{
+    storage_init();
+    menu_resend_all_regs();
     encoder_init();
     menu_draw();
 }
 
+#define REG_RESYNC_INTERVAL_TICKS 150 /* ~1.5s at the 10ms main-loop cadence */
+static uint16_t s_resync_tick_count = 0;
+
 void menu_tick(void)
 {
+    s_resync_tick_count++;
+    if (s_resync_tick_count >= REG_RESYNC_INTERVAL_TICKS)
+    {
+        s_resync_tick_count = 0;
+        menu_resend_all_regs();
+    }
+
     s_accum += encoder_read_delta();
     int32_t steps = s_accum / ENCODER_COUNTS_PER_STEP;
     s_accum -= steps * ENCODER_COUNTS_PER_STEP;

@@ -244,8 +244,18 @@ clicking the button enters/confirms edit mode.
 - On edit confirm, the value is written to flash (`storage_set`) and sent
   over SPI (`hipims_spi_write_reg`). If the SPI write fails after all
   retries, the LCD shows `SPI FAIL` for ~800ms.
-- At boot (`menu_init`), every stored register value is resent to the FPGA —
-  the FPGA has no memory of its own across a power cycle.
+- At boot (`menu_init`), every stored register value is resent to the FPGA,
+  and the same full resend repeats every ~1.5s from `menu_tick()`
+  (`menu_resend_all_regs()`). The FPGA has no non-volatile memory of its own
+  for registers — a standalone FPGA reconfigure (reflash via Programmer, or
+  power-cycling just the FPGA board) silently zeroes all 36 registers
+  without the STM32 knowing, since it only saw this at its own boot. Without
+  the periodic resend this looks like "SPI is fine (ACK), but no
+  generation" and is nasty to debug blind — found during 2026-08-19
+  bring-up. Safe to do on a timer: `REG_ENABLE` only clears the anode fault
+  latch on a `0→1` *edge*, not a level, so repeatedly resending the same `1`
+  never re-triggers it; every other register is a plain level with no side
+  effect from being rewritten to its current value.
 
 ## Fault handling — manual reset only
 

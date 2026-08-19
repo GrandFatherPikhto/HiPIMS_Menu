@@ -34,7 +34,7 @@ bool menu_draw_update(menu_context_t *ctx, menu_id_t id) {
 #define MENU_LINE_LEN (LCD_STRING_LEN / LCD_NUM_STRINGS)
 
 /* Дописывает маркер состояния ('>' — навигация, '*' — редактирование) в правый край строки. */
-static void menu_draw_line_marker(menu_context_t *ctx) {
+void menu_draw_pad_marker(menu_context_t *ctx) {
     int len = (int)strlen(ctx->value_buf);
     if (len > MENU_LINE_LEN - 1) {
         len = MENU_LINE_LEN - 1;
@@ -51,7 +51,7 @@ void menu_draw_string_fixed_value_cb(menu_context_t *ctx, menu_id_t id) {
     const char* value = ctx->configs[id].data.string_fixed.values[idx];
     strncpy(ctx->value_buf, value, LCD_STRING_LEN - 1);
     ctx->value_buf[LCD_STRING_LEN - 1] = '\0';
-    menu_draw_line_marker(ctx);
+    menu_draw_pad_marker(ctx);
 }
 
 

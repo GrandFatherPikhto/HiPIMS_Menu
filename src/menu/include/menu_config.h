@@ -32,7 +32,8 @@ typedef struct s_stub_config_t {} stub_config_t;
 typedef struct s_string_fixed_t {
     uint8_t count;
     uint8_t default_idx;
-    const char* *values; 
+    const char* *values;     const int32_t *raw_values; ///< Optional, NULL if not set in menu.yaml. 1:1 with values by index.
+
 } string_fixed_config_t;
 
 // dword_factor

@@ -7,6 +7,11 @@
 #include "menu_type.h"
 
 bool menu_draw_update(menu_context_t *ctx, menu_id_t id);
+
+/* Pads value_buf to the display line width and appends the state marker
+   ('>' navigation, '*' editing) at the right edge -- measures strlen(value_buf)
+   itself, no separate length parameter needed. */
+void menu_draw_pad_marker(menu_context_t *ctx);
 void menu_draw_string_fixed_value_cb(menu_context_t *ctx, menu_id_t id);
 void hipims_draw_time_value_cb(menu_context_t *ctx, menu_id_t id);
 void hipims_draw_deadtime_value_cb(menu_context_t *ctx, menu_id_t id);

@@ -42,6 +42,7 @@ static const char *s_values_str_ch6_enable[] = { "Off", "On" };
 static const char *s_values_str_ch7_enable[] = { "Off", "On" };
 static const char *s_values_str_anode_enable[] = { "Off", "On" };
 
+
 static const menu_node_config_t s_menu_config[] = {
     [MENU_ID_ENABLE] = {        
         .id = MENU_ID_ENABLE,
@@ -56,8 +57,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_enable
-        }
+            .values = s_values_str_enable,
+            .raw_values = NULL        }
     },
     [MENU_ID_START] = {        
         .id = MENU_ID_START,
@@ -72,8 +73,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_start
-        }
+            .values = s_values_str_start,
+            .raw_values = NULL        }
     },
     [MENU_ID_PERIOD] = {        
         .id = MENU_ID_PERIOD,
@@ -128,8 +129,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_leg_b_enable
-        }
+            .values = s_values_str_leg_b_enable,
+            .raw_values = NULL        }
     },
     [MENU_ID_LEG_B_DELAY] = {        
         .id = MENU_ID_LEG_B_DELAY,
@@ -184,8 +185,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_ch0_enable
-        }
+            .values = s_values_str_ch0_enable,
+            .raw_values = NULL        }
     },
     [MENU_ID_CH0_DELAY] = {        
         .id = MENU_ID_CH0_DELAY,
@@ -240,8 +241,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_ch1_enable
-        }
+            .values = s_values_str_ch1_enable,
+            .raw_values = NULL        }
     },
     [MENU_ID_CH1_DELAY] = {        
         .id = MENU_ID_CH1_DELAY,
@@ -296,8 +297,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_ch2_enable
-        }
+            .values = s_values_str_ch2_enable,
+            .raw_values = NULL        }
     },
     [MENU_ID_CH2_DELAY] = {        
         .id = MENU_ID_CH2_DELAY,
@@ -352,8 +353,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_ch3_enable
-        }
+            .values = s_values_str_ch3_enable,
+            .raw_values = NULL        }
     },
     [MENU_ID_CH3_DELAY] = {        
         .id = MENU_ID_CH3_DELAY,
@@ -408,8 +409,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_ch4_enable
-        }
+            .values = s_values_str_ch4_enable,
+            .raw_values = NULL        }
     },
     [MENU_ID_CH4_DELAY] = {        
         .id = MENU_ID_CH4_DELAY,
@@ -464,8 +465,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_ch5_enable
-        }
+            .values = s_values_str_ch5_enable,
+            .raw_values = NULL        }
     },
     [MENU_ID_CH5_DELAY] = {        
         .id = MENU_ID_CH5_DELAY,
@@ -520,8 +521,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_ch6_enable
-        }
+            .values = s_values_str_ch6_enable,
+            .raw_values = NULL        }
     },
     [MENU_ID_CH6_DELAY] = {        
         .id = MENU_ID_CH6_DELAY,
@@ -576,8 +577,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_ch7_enable
-        }
+            .values = s_values_str_ch7_enable,
+            .raw_values = NULL        }
     },
     [MENU_ID_CH7_DELAY] = {        
         .id = MENU_ID_CH7_DELAY,
@@ -632,8 +633,8 @@ static const menu_node_config_t s_menu_config[] = {
         .data.string_fixed = {
             .default_idx = 0,
             .count = 2,
-            .values = s_values_str_anode_enable
-        }
+            .values = s_values_str_anode_enable,
+            .raw_values = NULL        }
     },
     [MENU_ID_ANODE_PERIOD] = {        
         .id = MENU_ID_ANODE_PERIOD,

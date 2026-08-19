@@ -89,16 +89,6 @@ static void append_step_label(char *buf, size_t *pos, int32_t factor_raw_cycles)
     }
 }
 
-/* Mirrors the generated menu_draw_line_marker() (static, not exported):
- * pad to 15 columns, then '*' while editing or '>' while navigating. */
-static void draw_value_marker(menu_context_t *ctx, size_t content_len)
-{
-    size_t pos = content_len;
-    while (pos < HIPIMS_LCD_ROW_LEN - 1) { ctx->value_buf[pos++] = ' '; }
-    ctx->value_buf[pos] = (char)(ctx->state == MENU_STATE_EDIT ? '*' : '>');
-    ctx->value_buf[pos + 1] = '\0';
-}
-
 /* Registered directly as draw_value_cb in menu/hipims.yaml for every
  * role: factor time field (period, widths, delays, duration) — MenuCraft's
  * draw.c.jinja now checks function_info.source == "custom" (fixed
@@ -116,7 +106,7 @@ void hipims_draw_time_value_cb(menu_context_t *ctx, menu_id_t id)
     ctx->value_buf[pos++] = 's';
     ctx->value_buf[pos++] = ' ';
     append_step_label(ctx->value_buf, &pos, factor);
-    draw_value_marker(ctx, pos);
+    menu_draw_pad_marker(ctx);
 }
 
 /* anode_deadtime is the one time-kind field deliberately NOT shown as
@@ -130,7 +120,7 @@ void hipims_draw_deadtime_value_cb(menu_context_t *ctx, menu_id_t id)
     append_uint32(ctx->value_buf, &pos, ns, 1);
     ctx->value_buf[pos++] = 'n';
     ctx->value_buf[pos++] = 's';
-    draw_value_marker(ctx, pos);
+    menu_draw_pad_marker(ctx);
 }
 
 void hipims_errors_draw_cb(menu_context_t *ctx, menu_id_t id)

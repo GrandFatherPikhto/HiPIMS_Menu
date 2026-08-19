@@ -5,7 +5,8 @@ menu, EC11 rotary encoder) for a HIPIMS pulse generator whose timing-critical
 core runs on a separate FPGA board. This firmware is the SPI master; the FPGA
 is the SPI slave and the only thing that actually generates pulses.
 
-The FPGA design lives in a separate repository, `HIPIMS_Generator`
+The FPGA design lives in a separate repository,
+[HIPIMS_Generator](https://github.com/GrandFatherPikhto/HIPIMS_Generator)
 (Quartus/VHDL project, EP4CE6E22C8 / Cyclone IV E). This repository does not
 contain and does not track any VHDL — it only implements the protocol the
 FPGA expects.

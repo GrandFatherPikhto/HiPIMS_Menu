@@ -4,6 +4,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* Raw TIM2 counts per encoder detent (4 quadrature edges per click in X4
+ * mode) — confirmed against the physical encoder: one click = one step.
+ * Lives here, next to the driver that owns the X4-decode assumption, so
+ * main.c's raw-counts -> steps division stays in sync with the hardware. */
+#define ENCODER_COUNTS_PER_STEP 4
+
 typedef enum
 {
     ENCODER_BUTTON_NONE = 0,

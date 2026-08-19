@@ -17,7 +17,22 @@
 
 #define HIPIMS_SPI_MAX_RETRIES 10
 
+/* UART diagnostics policy. The happy path — including the periodic resend
+ * of all HIPIMS_NUM_REGS registers every ~1.5s and the ~200ms fault poll —
+ * must NOT print anything: each ~50-char line costs ~4-5ms of blocking TXE
+ * polling at 115200, and the full resend would stall the 10ms main loop for
+ * ~150ms+. So by default only failures (NACKed attempts) are dumped. Define
+ * HIPIMS_DEBUG_SPI_FULL to log every attempt (ACK and NACK) for bring-up. */
+#ifndef HIPIMS_DEBUG_SPI_FULL
+#define HIPIMS_DEBUG_SPI_FULL 0
+#endif
+
 static uint8_t s_last_status = 0;
+
+/* Diagnostics counters — surfaced to the UI via the ERRORS menu item so a
+ * silently NACKed write is visible to the operator instead of vanishing. */
+static uint32_t s_nack_count = 0;    /* NACKed individual attempts */
+static uint32_t s_tx_failures = 0;   /* whole writes that never ACKed */
 
 static void hipims_spi_gpio_init(void)
 {
@@ -144,20 +159,45 @@ bool hipims_spi_write_reg(uint8_t reg_addr, int32_t value)
     for (uint8_t attempt = 0; attempt < HIPIMS_SPI_MAX_RETRIES; attempt++)
     {
         s_last_status = hipims_spi_transact(frame);
-        hipims_spi_debug_dump(frame, s_last_status, attempt);
+        bool acked = (s_last_status & HIPIMS_STATUS_ACK) != 0;
 
-        if (s_last_status & HIPIMS_STATUS_ACK)
+        /* Only failures (or HIPIMS_DEBUG_SPI_FULL) hit the UART — see the
+         * policy note at the top of this file. */
+        if (HIPIMS_DEBUG_SPI_FULL || !acked)
+        {
+            hipims_spi_debug_dump(frame, s_last_status, attempt);
+        }
+
+        if (acked)
         {
             return true;
         }
 
+        s_nack_count++;
         hipims_spi_cs_gap_delay(); /* keep CS_N high past the glitch filter before retrying */
     }
 
+    s_tx_failures++;
     return false;
 }
 
 uint8_t hipims_spi_last_status(void)
 {
     return s_last_status;
+}
+
+uint32_t hipims_spi_nack_count(void)
+{
+    return s_nack_count;
+}
+
+uint32_t hipims_spi_tx_failures(void)
+{
+    return s_tx_failures;
+}
+
+void hipims_spi_clear_failures(void)
+{
+    s_nack_count = 0;
+    s_tx_failures = 0;
 }

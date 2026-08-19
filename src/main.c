@@ -12,10 +12,6 @@
 #include "hipims_spi.h"
 #include "hipims_storage.h"
 
-/* Raw TIM2 counts per encoder detent (4 quadrature edges per click in X4
- * mode) — confirmed against the physical encoder: one click = one step. */
-#define ENCODER_COUNTS_PER_STEP 4
-
 /* HSE 8MHz crystal x9 PLL -> 72MHz SYSCLK/HCLK, APB1=36MHz, APB2=72MHz. */
 static void SystemClock_Config(void)
 {

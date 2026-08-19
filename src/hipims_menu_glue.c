@@ -1,6 +1,5 @@
 #include "hipims_menu_glue.h"
 
-#include <stdio.h>
 #include <string.h>
 
 #include "menu.h"
@@ -22,12 +21,25 @@
  * (generic across string_fixed/dword_factor/dword_simple, keyed off
  * ctx->configs[id].category) reads whichever union member actually applies
  * without this file needing to know or care which. One flash write + one
- * SPI write per finished edit, not per tick — gated on MENU_EVENT_STOP_EDIT. */
+ * SPI write per finished edit, not per tick — gated on MENU_EVENT_STOP_EDIT.
+ *
+ * The SPI write's return value is deliberately not acted on here: a NACKed
+ * write is counted inside hipims_spi.c (hipims_spi_tx_failures()) and
+ * surfaced on the ERRORS screen, and the ~1.5s periodic resend re-pushes the
+ * persisted value anyway. Persisting to flash regardless keeps the STM32 the
+ * source of truth even if the FPGA is momentarily out of sync. */
 void hipims_on_value_changed(menu_context_t *ctx, menu_id_t id, menu_event_t event)
 {
     if (event != MENU_EVENT_STOP_EDIT) { return; }
 
-    uint8_t reg_addr = (uint8_t)ctx->configs[id].tag;
+    /* Defensive: the tag comes from menu/hipims.yaml and must match the
+     * register map in hipims_spi.h (see techdocs/notes/menucraft-sync.md).
+     * A stale tag is better ignored loudly-by-nothing than silently writing
+     * to the wrong register. */
+    uint32_t tag = ctx->configs[id].tag;
+    if (tag >= HIPIMS_NUM_REGS) { return; }
+
+    uint8_t reg_addr = (uint8_t)tag;
     int32_t value = menu_get_int32(ctx, id);
 
     storage_set(reg_addr, value);
@@ -47,6 +59,11 @@ static void append_uint32(char *buf, size_t *pos, uint32_t value, uint8_t min_di
     } while (value != 0 || n < min_digits);
 
     while (n > 0) { buf[(*pos)++] = tmp[--n]; }
+}
+
+static void append_str(char *buf, size_t *pos, const char *s)
+{
+    while (*s) { buf[(*pos)++] = *s++; }
 }
 
 /* Raw register cycles (1 LSB = 20ns) as "us.nnn" — same integer-only
@@ -126,29 +143,48 @@ void hipims_draw_deadtime_value_cb(menu_context_t *ctx, menu_id_t id)
 void hipims_errors_draw_cb(menu_context_t *ctx, menu_id_t id)
 {
     (void)id;
-    char line[HIPIMS_LCD_ROW_LEN + 1];
-    int len = snprintf(line, sizeof(line), "A:%s B:%s",
-                        hipims_fault_a() ? "FLT" : "OK",
-                        hipims_fault_b() ? "FLT" : "OK");
-    if (len < 0) { len = 0; }
-    while (len < HIPIMS_LCD_ROW_LEN) { line[len++] = ' '; } /* no leftover chars from a longer previous line */
-    line[HIPIMS_LCD_ROW_LEN] = '\0';
+    size_t pos = 0;
 
-    memcpy(ctx->value_buf, line, sizeof(line));
+    append_str(ctx->value_buf, &pos, "A:");
+    append_str(ctx->value_buf, &pos, hipims_fault_a() ? "FLT" : "OK");
+    append_str(ctx->value_buf, &pos, " B:");
+    append_str(ctx->value_buf, &pos, hipims_fault_b() ? "FLT" : "OK");
+
+    /* Surface the SPI failure counter so a write that never reached the FPGA
+     * is visible instead of being silently swallowed (the ~1.5s resend
+     * re-pushes it, but the operator should know it happened). */
+    if (hipims_spi_tx_failures() != 0)
+    {
+        append_str(ctx->value_buf, &pos, " S!");
+    }
+
+    while (pos < HIPIMS_LCD_ROW_LEN) { ctx->value_buf[pos++] = ' '; }
+    ctx->value_buf[HIPIMS_LCD_ROW_LEN] = '\0';
 }
 
+/* Bound in the generated menu (menu_data_config.c) as the ERRORS click_cb.
+ * The generated navigation layer fires click_cb only while already in edit
+ * mode, so a reset currently takes two presses (enter to edit, enter again).
+ * Making ERRORS a true one-press "action leaf" requires a MenuCraft change —
+ * the generated src/menu/ is not hand-edited here; see
+ * techdocs/notes/menucraft-sync.md. */
 void hipims_fault_reset_cb(menu_context_t *ctx, menu_id_t id)
 {
     (void)ctx;
     (void)id;
     hipims_fault_reset();
+
+    /* The operator just acknowledged the fault state — treat that as the
+     * moment to also clear the SPI failure counters, so a stale "S!" from a
+     * long-since-healed write doesn't linger forever. */
+    hipims_spi_clear_failures();
 }
 
-/* Any leaf whose category is one of the three "has a real value" kinds is,
- * in this tree, exactly one of our 36 register-backed nodes (branches and
- * ERRORS are MENU_CATEGORY_NONE/CALLBACK_CALLBACK) — so a plain sweep over
- * every id, filtered by category, reaches precisely the right set without
- * needing to enumerate menu_id_t by name. */
+/* Every register-backed node carries a `tag: <reg addr>` (branches and
+ * ERRORS are 0) — so a plain sweep over every id, filtered on a non-zero
+ * in-range tag, reaches precisely the register leaves without needing to
+ * enumerate menu_id_t by name or know the menu's category set. Keying on tag
+ * instead of category is robust to MenuCraft adding new value categories. */
 void hipims_menu_glue_load_from_storage(void)
 {
     menu_context_t *ctx = menu_data_get_context();
@@ -156,15 +192,13 @@ void hipims_menu_glue_load_from_storage(void)
 
     for (uint8_t id = 0; id < MENU_ID_COUNT; id++)
     {
-        menu_category_t category = ctx->configs[id].category;
-        if (category != MENU_CATEGORY_STRING_FIXED &&
-            category != MENU_CATEGORY_DWORD_FACTOR &&
-            category != MENU_CATEGORY_DWORD_SIMPLE)
+        uint32_t tag = ctx->configs[id].tag;
+        if (tag == 0 || tag >= HIPIMS_NUM_REGS)
         {
             continue;
         }
 
-        menu_set_int32(ctx, (menu_id_t)id, storage_get((uint8_t)ctx->configs[id].tag));
+        menu_set_int32(ctx, (menu_id_t)id, storage_get((uint8_t)tag));
     }
 }
 

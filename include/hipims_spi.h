@@ -46,10 +46,21 @@ void hipims_spi_init(void);
 /* One CS_N low -> 7-byte frame (addr + 32-bit signed big-endian value +
  * CRC-8) -> dummy byte while reading the status byte back over MISO -> CS_N
  * high. Retries the whole frame up to HIPIMS_SPI_MAX_RETRIES times on NACK.
- * Returns false if the FPGA never ACKed — the register was not written. */
+ * Returns false if the FPGA never ACKed — the register was not written.
+ *
+ * By default only NACKed attempts are logged to the debug UART (the happy
+ * path, including the periodic full resend, stays silent so it cannot stall
+ * the 10ms main loop). Define HIPIMS_DEBUG_SPI_FULL=1 to log every attempt. */
 bool hipims_spi_write_reg(uint8_t reg_addr, int32_t value);
 
 /* Status byte from the last completed transaction (ACK/NACK + live fault bits). */
 uint8_t hipims_spi_last_status(void);
+
+/* Diagnostics counters — NACKed individual attempts and whole writes that
+ * never ACKed. Monotonic since boot (or since the last clear); surfaced to
+ * the operator via the ERRORS menu item. */
+uint32_t hipims_spi_nack_count(void);
+uint32_t hipims_spi_tx_failures(void);
+void hipims_spi_clear_failures(void);
 
 #endif /* HIPIMS_SPI_H */

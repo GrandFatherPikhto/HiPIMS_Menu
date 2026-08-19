@@ -713,7 +713,7 @@ static const menu_node_config_t s_menu_config[] = {
             .max = 100
         }
     },
-    [MENU_ID_ERRORS] = {        
+    [MENU_ID_ERRORS] = {
         .id = MENU_ID_ERRORS,
         .category = MENU_CATEGORY_CALLBACK_CALLBACK,
         .tag = 0,

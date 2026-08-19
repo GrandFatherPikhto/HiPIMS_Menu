@@ -1,11 +1,42 @@
 
 This directory is intended for PlatformIO Test Runner and project tests.
 
-Unit Testing is a software testing method by which individual units of
-source code, sets of one or more MCU program modules together with associated
-control data, usage procedures, and operating procedures, are tested to
-determine whether they are fit for use. Unit testing finds problems early
-in the development cycle.
+## test_menu — host-side tests for the generated menu logic
+
+`test_menu/test_menu_logic.c` pins down the behaviour of the **generated**
+menu module (`src/menu/`, produced by MenuCraft): navigation, the edit state
+machine, value clamping/wrapping and the event callbacks the app layer
+(`hipims_menu_glue.c`) relies on. The menu module is pure C (no hardware), so
+it runs on any host.
+
+### Build & run with any C99 compiler
+
+Verified on WSL (gcc 13.3):
+
+```bash
+cd /mnt/d/Projects/PlatformIO/HiPIMS_Menu
+
+gcc -std=c99 -Wall -Wextra -Isrc/menu/include -Iinclude \
+    test/test_menu/test_menu_logic.c \
+    src/menu/menu.c src/menu/menu_context.c src/menu/menu_data_config.c \
+    src/menu/menu_data_context.c src/menu/menu_data_name.c \
+    src/menu/menu_data_tree.c src/menu/menu_data_value.c \
+    src/menu/menu_draw.c src/menu/menu_edit.c src/menu/menu_name.c \
+    src/menu/menu_navigate.c src/menu/menu_value_access.c \
+    -o /tmp/test_menu_logic && /tmp/test_menu_logic
+```
+
+Exit code = number of failed checks (0 = all passed).
+
+Notes:
+- The test replaces the app callbacks (`hipims_*`) with recording stubs — the
+  generated `menu_data_config.c` registers them as function pointers.
+- The only compiler warning comes from the generated `menu_reset()` (unused
+  `ctx`); generated code is intentionally not edited.
+- If the PlatformIO `unity` framework is ever installed, this test can be
+  wired into `pio test -e native` (add `[env:native]` with
+  `platform = native`, `build_src_filter = +<menu/*>` and the two `-I` flags);
+  the assert helpers already mirror unity's `TEST_ASSERT_*` checks.
 
 More information about PlatformIO Unit Testing:
 - https://docs.platformio.org/en/latest/advanced/unit-testing/index.html

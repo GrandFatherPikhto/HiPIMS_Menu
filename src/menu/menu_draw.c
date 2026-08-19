@@ -1,0 +1,59 @@
+#include "menu_draw.h"
+#include "menu_context.h"
+#include "menu_tree.h"
+#include "menu_config.h"
+#include "menu_value.h"
+
+#include <string.h>
+#include <stdio.h>
+
+bool menu_draw_update(menu_context_t *ctx, menu_id_t id) {
+    
+    if (id >= MENU_ID_COUNT || ctx->dirty == false)
+        return false;
+    
+    memset((void *)ctx->title_buf, 0, LCD_STRING_LEN);
+    memset((void *)ctx->value_buf, 0, LCD_STRING_LEN);
+
+    strncpy((char *)ctx->title_buf, ctx->nodes[id].title, LCD_STRING_LEN);
+
+    if (ctx->nodes[id].child == MENU_ID_COUNT) {
+        if (ctx->configs[id].draw_value_cb) {
+            ctx->configs[id].draw_value_cb(ctx, id);
+        }
+    } else {
+        ctx->value_buf[0] = '>';
+    }
+
+    ctx->dirty = false;
+    ctx->update = true;
+    return true;
+}
+
+/* Длина одной строки дисплея: LCD_STRING_LEN — общий буфер на LCD_NUM_STRINGS строк. */
+#define MENU_LINE_LEN (LCD_STRING_LEN / LCD_NUM_STRINGS)
+
+/* Дописывает маркер состояния ('>' — навигация, '*' — редактирование) в правый край строки. */
+static void menu_draw_line_marker(menu_context_t *ctx) {
+    int len = (int)strlen(ctx->value_buf);
+    if (len > MENU_LINE_LEN - 1) {
+        len = MENU_LINE_LEN - 1;
+    }
+    while (len < MENU_LINE_LEN - 1) {
+        ctx->value_buf[len++] = ' ';
+    }
+    ctx->value_buf[len] = (char)(ctx->state == MENU_STATE_EDIT ? '*' : '>');
+    ctx->value_buf[len + 1] = '\0';
+}
+
+void menu_draw_string_fixed_value_cb(menu_context_t *ctx, menu_id_t id) {
+    uint8_t idx  = ctx->values[id].data.string_fixed.idx;
+    const char* value = ctx->configs[id].data.string_fixed.values[idx];
+    strncpy(ctx->value_buf, value, LCD_STRING_LEN - 1);
+    ctx->value_buf[LCD_STRING_LEN - 1] = '\0';
+    menu_draw_line_marker(ctx);
+}
+
+
+
+

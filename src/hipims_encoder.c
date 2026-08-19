@@ -11,7 +11,8 @@
 #define ENCODER_B_PIN      LL_GPIO_PIN_1
 #define BUTTON_PIN         LL_GPIO_PIN_2
 
-#define BUTTON_DEBOUNCE_TICKS 3 /* consecutive stable polls before accepting a new state */
+#define BUTTON_DEBOUNCE_TICKS    3  /* consecutive stable polls before accepting a new state */
+#define BUTTON_LONG_PRESS_TICKS 60  /* ~600ms at the 10ms main-loop poll cadence */
 
 static void encoder_gpio_init(void)
 {
@@ -61,25 +62,49 @@ int32_t encoder_read_delta(void)
     return delta;
 }
 
-bool encoder_button_clicked(void)
+encoder_button_event_t encoder_button_event(void)
 {
     static uint8_t stable_state = 1; /* pull-up: released = 1 */
     static uint8_t debounce_count = 0;
+    static uint16_t hold_ticks = 0;
+    static bool long_fired = false;
 
     uint8_t raw = LL_GPIO_IsInputPinSet(ENCODER_PORT, BUTTON_PIN) ? 1u : 0u;
 
-    if (raw == stable_state)
+    if (raw != stable_state)
     {
-        debounce_count = 0;
-        return false;
-    }
+        debounce_count++;
+        if (debounce_count < BUTTON_DEBOUNCE_TICKS)
+        {
+            return ENCODER_BUTTON_NONE;
+        }
 
-    if (++debounce_count < BUTTON_DEBOUNCE_TICKS)
-    {
-        return false;
+        debounce_count = 0;
+        stable_state = raw;
+
+        if (stable_state == 0) /* just pressed */
+        {
+            hold_ticks = 0;
+            long_fired = false;
+        }
+        else if (!long_fired) /* just released, short enough to count as a click */
+        {
+            return ENCODER_BUTTON_CLICK;
+        }
+
+        return ENCODER_BUTTON_NONE;
     }
 
     debounce_count = 0;
-    stable_state = raw;
-    return (stable_state == 0); /* pressed = 0 */
+
+    if (stable_state == 0 && !long_fired) /* still held down */
+    {
+        if (++hold_ticks >= BUTTON_LONG_PRESS_TICKS)
+        {
+            long_fired = true;
+            return ENCODER_BUTTON_LONG_PRESS;
+        }
+    }
+
+    return ENCODER_BUTTON_NONE;
 }

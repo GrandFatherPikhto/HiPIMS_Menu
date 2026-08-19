@@ -9,76 +9,29 @@
 #include "menu_draw.h"
 #include "menu_edit.h"
 #include "menu_value.h"
+#include "menu_value_access.h"
 
 #include "hipims_fault.h"
 #include "hipims_lcd1602.h"
 #include "hipims_spi.h"
 #include "hipims_storage.h"
 
-/* One flash write + one SPI write per finished edit, not per tick — see
- * MENU_EVENT_STOP_EDIT gate in hipims_on_value_changed() below. */
-static void forward(uint8_t reg_addr, int32_t value)
-{
-    storage_set(reg_addr, value);
-    hipims_spi_write_reg(reg_addr, value);
-}
-
+/* Every leaf that carries a real register has `event_cb: hipims_on_value_changed`
+ * and a `tag: <reg addr>` in menu/hipims.yaml (branches and ERRORS have
+ * neither) — so this fires only for genuine register leaves, and menu_get_int32()
+ * (generic across string_fixed/dword_factor/dword_simple, keyed off
+ * ctx->configs[id].category) reads whichever union member actually applies
+ * without this file needing to know or care which. One flash write + one
+ * SPI write per finished edit, not per tick — gated on MENU_EVENT_STOP_EDIT. */
 void hipims_on_value_changed(menu_context_t *ctx, menu_id_t id, menu_event_t event)
 {
     if (event != MENU_EVENT_STOP_EDIT) { return; }
 
-    switch (id)
-    {
-    case MENU_ID_ENABLE:       forward(HIPIMS_REG_ENABLE, ctx->values[id].data.string_fixed.idx); break;
-    case MENU_ID_START:        forward(HIPIMS_REG_START, ctx->values[id].data.string_fixed.idx); break;
+    uint8_t reg_addr = (uint8_t)ctx->configs[id].tag;
+    int32_t value = menu_get_int32(ctx, id);
 
-    case MENU_ID_PERIOD:       forward(HIPIMS_REG_PERIOD, ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_LEG_A_WIDTH:  forward(HIPIMS_REG_LEGA_WIDTH, ctx->values[id].data.dword_factor.value); break;
-
-    case MENU_ID_LEG_B_ENABLE: forward(HIPIMS_REG_LEGB_ENABLE, ctx->values[id].data.string_fixed.idx); break;
-    case MENU_ID_LEG_B_DELAY:  forward(HIPIMS_REG_LEGB_DELAY, ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_LEG_B_WIDTH:  forward(HIPIMS_REG_LEGB_WIDTH, ctx->values[id].data.dword_factor.value); break;
-
-    case MENU_ID_CH0_ENABLE: forward(HIPIMS_REG_CH_ENABLE(0), ctx->values[id].data.string_fixed.idx); break;
-    case MENU_ID_CH0_DELAY:  forward(HIPIMS_REG_CH_DELAY(0), ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_CH0_WIDTH:  forward(HIPIMS_REG_CH_WIDTH(0), ctx->values[id].data.dword_factor.value); break;
-
-    case MENU_ID_CH1_ENABLE: forward(HIPIMS_REG_CH_ENABLE(1), ctx->values[id].data.string_fixed.idx); break;
-    case MENU_ID_CH1_DELAY:  forward(HIPIMS_REG_CH_DELAY(1), ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_CH1_WIDTH:  forward(HIPIMS_REG_CH_WIDTH(1), ctx->values[id].data.dword_factor.value); break;
-
-    case MENU_ID_CH2_ENABLE: forward(HIPIMS_REG_CH_ENABLE(2), ctx->values[id].data.string_fixed.idx); break;
-    case MENU_ID_CH2_DELAY:  forward(HIPIMS_REG_CH_DELAY(2), ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_CH2_WIDTH:  forward(HIPIMS_REG_CH_WIDTH(2), ctx->values[id].data.dword_factor.value); break;
-
-    case MENU_ID_CH3_ENABLE: forward(HIPIMS_REG_CH_ENABLE(3), ctx->values[id].data.string_fixed.idx); break;
-    case MENU_ID_CH3_DELAY:  forward(HIPIMS_REG_CH_DELAY(3), ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_CH3_WIDTH:  forward(HIPIMS_REG_CH_WIDTH(3), ctx->values[id].data.dword_factor.value); break;
-
-    case MENU_ID_CH4_ENABLE: forward(HIPIMS_REG_CH_ENABLE(4), ctx->values[id].data.string_fixed.idx); break;
-    case MENU_ID_CH4_DELAY:  forward(HIPIMS_REG_CH_DELAY(4), ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_CH4_WIDTH:  forward(HIPIMS_REG_CH_WIDTH(4), ctx->values[id].data.dword_factor.value); break;
-
-    case MENU_ID_CH5_ENABLE: forward(HIPIMS_REG_CH_ENABLE(5), ctx->values[id].data.string_fixed.idx); break;
-    case MENU_ID_CH5_DELAY:  forward(HIPIMS_REG_CH_DELAY(5), ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_CH5_WIDTH:  forward(HIPIMS_REG_CH_WIDTH(5), ctx->values[id].data.dword_factor.value); break;
-
-    case MENU_ID_CH6_ENABLE: forward(HIPIMS_REG_CH_ENABLE(6), ctx->values[id].data.string_fixed.idx); break;
-    case MENU_ID_CH6_DELAY:  forward(HIPIMS_REG_CH_DELAY(6), ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_CH6_WIDTH:  forward(HIPIMS_REG_CH_WIDTH(6), ctx->values[id].data.dword_factor.value); break;
-
-    case MENU_ID_CH7_ENABLE: forward(HIPIMS_REG_CH_ENABLE(7), ctx->values[id].data.string_fixed.idx); break;
-    case MENU_ID_CH7_DELAY:  forward(HIPIMS_REG_CH_DELAY(7), ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_CH7_WIDTH:  forward(HIPIMS_REG_CH_WIDTH(7), ctx->values[id].data.dword_factor.value); break;
-
-    case MENU_ID_ANODE_ENABLE:   forward(HIPIMS_REG_ANODE_ENABLE, ctx->values[id].data.string_fixed.idx); break;
-    case MENU_ID_ANODE_PERIOD:   forward(HIPIMS_REG_ANODE_PERIOD, ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_ANODE_DELAY:    forward(HIPIMS_REG_ANODE_DELAY, ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_ANODE_DURATION: forward(HIPIMS_REG_ANODE_DURATION, ctx->values[id].data.dword_factor.value); break;
-    case MENU_ID_ANODE_DEADTIME: forward(HIPIMS_REG_ANODE_DEADTIME, ctx->values[id].data.dword_simple.value); break;
-
-    default: break; /* branch nodes (OPTIONS/LEG_A/LEG_B/CHANNEL_N/ANODE/ROOT) and ERRORS carry no register */
-    }
+    storage_set(reg_addr, value);
+    hipims_spi_write_reg(reg_addr, value);
 }
 
 #define HIPIMS_LCD_ROW_LEN 16
@@ -112,21 +65,19 @@ static void append_us(char *buf, size_t *pos, int32_t raw_cycles)
     append_uint32(buf, pos, ns % 1000u, 3);
 }
 
-/* Compact step-size label for the currently selected factor — "20n"/"2u"/
- * "100u"/"1m" — so the operator can still see which click-to-cycle scale is
+/* Compact step-size label for the currently selected factor — "1u"/"100u"/
+ * "1m" — so the operator can still see which click-to-cycle scale is
  * active, same information the auto-generated "(x50)" used to carry, just
  * in the same time units as the value instead of a raw cycle-count
- * multiplier. Every factor list in menu/hipims.yaml is a round number of
- * raw cycles, so integer ns/us/ms division is always exact here. */
+ * multiplier. No factor list in menu/hipims.yaml goes below 50 raw cycles
+ * (1us) — nanosecond step resolution is reserved for anode_deadtime alone,
+ * which has its own dedicated ns display — so there's no ns case to handle
+ * here, only us/ms. Every factor is a round number of raw cycles, so
+ * integer division is always exact. */
 static void append_step_label(char *buf, size_t *pos, int32_t factor_raw_cycles)
 {
     uint32_t ns = (uint32_t)factor_raw_cycles * 20u;
-    if (ns < 1000u)
-    {
-        append_uint32(buf, pos, ns, 1);
-        buf[(*pos)++] = 'n';
-    }
-    else if (ns < 1000000u)
+    if (ns < 1000000u)
     {
         append_uint32(buf, pos, ns / 1000u, 1);
         buf[(*pos)++] = 'u';
@@ -203,73 +154,28 @@ void hipims_fault_reset_cb(menu_context_t *ctx, menu_id_t id)
     hipims_fault_reset();
 }
 
-static void load_bool(menu_context_t *ctx, menu_id_t id, uint8_t reg_addr)
-{
-    ctx->values[id].data.string_fixed.idx = (uint8_t)(storage_get(reg_addr) ? 1u : 0u);
-}
-
-static void load_factor(menu_context_t *ctx, menu_id_t id, uint8_t reg_addr)
-{
-    ctx->values[id].data.dword_factor.value = storage_get(reg_addr);
-}
-
-static void load_simple(menu_context_t *ctx, menu_id_t id, uint8_t reg_addr)
-{
-    ctx->values[id].data.dword_simple.value = storage_get(reg_addr);
-}
-
+/* Any leaf whose category is one of the three "has a real value" kinds is,
+ * in this tree, exactly one of our 36 register-backed nodes (branches and
+ * ERRORS are MENU_CATEGORY_NONE/CALLBACK_CALLBACK) — so a plain sweep over
+ * every id, filtered by category, reaches precisely the right set without
+ * needing to enumerate menu_id_t by name. */
 void hipims_menu_glue_load_from_storage(void)
 {
     menu_context_t *ctx = menu_data_get_context();
     if (ctx == NULL) { return; }
 
-    load_bool(ctx, MENU_ID_ENABLE, HIPIMS_REG_ENABLE);
-    load_bool(ctx, MENU_ID_START, HIPIMS_REG_START);
+    for (uint8_t id = 0; id < MENU_ID_COUNT; id++)
+    {
+        menu_category_t category = ctx->configs[id].category;
+        if (category != MENU_CATEGORY_STRING_FIXED &&
+            category != MENU_CATEGORY_DWORD_FACTOR &&
+            category != MENU_CATEGORY_DWORD_SIMPLE)
+        {
+            continue;
+        }
 
-    load_factor(ctx, MENU_ID_PERIOD, HIPIMS_REG_PERIOD);
-    load_factor(ctx, MENU_ID_LEG_A_WIDTH, HIPIMS_REG_LEGA_WIDTH);
-
-    load_bool(ctx, MENU_ID_LEG_B_ENABLE, HIPIMS_REG_LEGB_ENABLE);
-    load_factor(ctx, MENU_ID_LEG_B_DELAY, HIPIMS_REG_LEGB_DELAY);
-    load_factor(ctx, MENU_ID_LEG_B_WIDTH, HIPIMS_REG_LEGB_WIDTH);
-
-    load_bool(ctx, MENU_ID_CH0_ENABLE, HIPIMS_REG_CH_ENABLE(0));
-    load_factor(ctx, MENU_ID_CH0_DELAY, HIPIMS_REG_CH_DELAY(0));
-    load_factor(ctx, MENU_ID_CH0_WIDTH, HIPIMS_REG_CH_WIDTH(0));
-
-    load_bool(ctx, MENU_ID_CH1_ENABLE, HIPIMS_REG_CH_ENABLE(1));
-    load_factor(ctx, MENU_ID_CH1_DELAY, HIPIMS_REG_CH_DELAY(1));
-    load_factor(ctx, MENU_ID_CH1_WIDTH, HIPIMS_REG_CH_WIDTH(1));
-
-    load_bool(ctx, MENU_ID_CH2_ENABLE, HIPIMS_REG_CH_ENABLE(2));
-    load_factor(ctx, MENU_ID_CH2_DELAY, HIPIMS_REG_CH_DELAY(2));
-    load_factor(ctx, MENU_ID_CH2_WIDTH, HIPIMS_REG_CH_WIDTH(2));
-
-    load_bool(ctx, MENU_ID_CH3_ENABLE, HIPIMS_REG_CH_ENABLE(3));
-    load_factor(ctx, MENU_ID_CH3_DELAY, HIPIMS_REG_CH_DELAY(3));
-    load_factor(ctx, MENU_ID_CH3_WIDTH, HIPIMS_REG_CH_WIDTH(3));
-
-    load_bool(ctx, MENU_ID_CH4_ENABLE, HIPIMS_REG_CH_ENABLE(4));
-    load_factor(ctx, MENU_ID_CH4_DELAY, HIPIMS_REG_CH_DELAY(4));
-    load_factor(ctx, MENU_ID_CH4_WIDTH, HIPIMS_REG_CH_WIDTH(4));
-
-    load_bool(ctx, MENU_ID_CH5_ENABLE, HIPIMS_REG_CH_ENABLE(5));
-    load_factor(ctx, MENU_ID_CH5_DELAY, HIPIMS_REG_CH_DELAY(5));
-    load_factor(ctx, MENU_ID_CH5_WIDTH, HIPIMS_REG_CH_WIDTH(5));
-
-    load_bool(ctx, MENU_ID_CH6_ENABLE, HIPIMS_REG_CH_ENABLE(6));
-    load_factor(ctx, MENU_ID_CH6_DELAY, HIPIMS_REG_CH_DELAY(6));
-    load_factor(ctx, MENU_ID_CH6_WIDTH, HIPIMS_REG_CH_WIDTH(6));
-
-    load_bool(ctx, MENU_ID_CH7_ENABLE, HIPIMS_REG_CH_ENABLE(7));
-    load_factor(ctx, MENU_ID_CH7_DELAY, HIPIMS_REG_CH_DELAY(7));
-    load_factor(ctx, MENU_ID_CH7_WIDTH, HIPIMS_REG_CH_WIDTH(7));
-
-    load_bool(ctx, MENU_ID_ANODE_ENABLE, HIPIMS_REG_ANODE_ENABLE);
-    load_factor(ctx, MENU_ID_ANODE_PERIOD, HIPIMS_REG_ANODE_PERIOD);
-    load_factor(ctx, MENU_ID_ANODE_DELAY, HIPIMS_REG_ANODE_DELAY);
-    load_factor(ctx, MENU_ID_ANODE_DURATION, HIPIMS_REG_ANODE_DURATION);
-    load_simple(ctx, MENU_ID_ANODE_DEADTIME, HIPIMS_REG_ANODE_DEADTIME);
+        menu_set_int32(ctx, (menu_id_t)id, storage_get((uint8_t)ctx->configs[id].tag));
+    }
 }
 
 #define HIPIMS_MENU_RESYNC_INTERVAL_TICKS 150 /* ~1.5s at the 10ms main-loop cadence */
